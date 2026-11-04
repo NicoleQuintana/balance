@@ -97,7 +97,7 @@ export default function Ajustes({ ajustes, guardarAjustes, jornadas, cargas, ctx
         ) : (
           <p className="tenue chico">
             <b className="blanco">Modo local:</b> los datos quedan guardados solo en este navegador.
-            Cuando configures Firebase, vas a entrar con Google y se guardan en la nube.
+            Cuando configures Firebase, vas a entrar con tu mail y se guardan en la nube.
           </p>
         )}
       </div>
