@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/__/auth/:path*",
+      "destination": "https://balance-46a61.firebaseapp.com/__/auth/:path*"
+    }
+  ]
+}

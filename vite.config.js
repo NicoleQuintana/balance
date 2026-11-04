@@ -27,6 +27,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        // Las rutas del login de Google (/__/auth/...) no las tiene que atender la app.
+        navigateFallbackDenylist: [/^\/__\//],
       },
     }),
   ],
