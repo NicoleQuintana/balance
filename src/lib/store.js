@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  browserPopupRedirectResolver,
   getRedirectResult,
   onAuthStateChanged,
   signInWithPopup,
@@ -46,6 +47,24 @@ const nuevoId = () =>
 
 /* ---------- Sesión ---------- */
 
+function esIOSoInstalada() {
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent)
+  const instalada = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone
+  return Boolean(ios || instalada)
+}
+
+function marcaRedirect(accion) {
+  const k = 'balance:loginRedirect'
+  try {
+    if (accion === 'poner') return localStorage.setItem(k, '1')
+    const habia = localStorage.getItem(k) === '1'
+    localStorage.removeItem(k)
+    return habia
+  } catch {
+    return accion === 'leer'
+  }
+}
+
 export function useAuth() {
   const [estado, setEstado] = useState(() =>
     firebaseActivo
@@ -55,20 +74,29 @@ export function useAuth() {
 
   useEffect(() => {
     if (!firebaseActivo) return
-    getRedirectResult(auth).catch((e) => console.error(e))
+    // Solo se busca el resultado del login cuando volvemos de la pantalla de Google.
+    if (marcaRedirect('leer')) {
+      getRedirectResult(auth, browserPopupRedirectResolver).catch((e) => console.error(e))
+    }
     return onAuthStateChanged(auth, (user) => setEstado({ user, cargando: false }))
   }, [])
 
   const entrar = useCallback(async () => {
+    const redirigir = () => {
+      marcaRedirect('poner')
+      return signInWithRedirect(auth, googleProvider, browserPopupRedirectResolver)
+    }
+    // En el iPhone (y en la app instalada) la ventana emergente no funciona bien.
+    if (esIOSoInstalada()) return redirigir()
     try {
-      await signInWithPopup(auth, googleProvider)
+      await signInWithPopup(auth, googleProvider, browserPopupRedirectResolver)
     } catch (e) {
       const usarRedirect = [
         'auth/popup-blocked',
         'auth/operation-not-supported-in-this-environment',
         'auth/cancelled-popup-request',
       ]
-      if (usarRedirect.includes(e?.code)) await signInWithRedirect(auth, googleProvider)
+      if (usarRedirect.includes(e?.code)) await redirigir()
       else if (e?.code !== 'auth/popup-closed-by-user') throw e
     }
   }, [])
