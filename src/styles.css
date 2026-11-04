@@ -197,3 +197,7 @@ button:disabled { opacity: .4; cursor: default; }
   .monto-grande { font-size: 38px !important; }
   .dato-valor { font-size: 16px; }
 }
+
+.login-form { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 12px; text-align: left; margin-top: 8px; }
+.login-form .btn-primario { margin-top: 4px; width: 100%; max-width: none; }
+.login .btn-texto.tenue { color: var(--texto-2); }
