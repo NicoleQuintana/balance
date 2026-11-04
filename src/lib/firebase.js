@@ -1,7 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import {
   browserLocalPersistence,
-  GoogleAuthProvider,
   indexedDBLocalPersistence,
   initializeAuth,
 } from 'firebase/auth'
@@ -25,21 +24,18 @@ export const firebaseActivo = Boolean(config.apiKey && config.projectId)
 
 let auth = null
 let db = null
-let googleProvider = null
 
 if (firebaseActivo) {
   const app = initializeApp(config)
-  // initializeAuth (en vez de getAuth) evita cargar al arrancar la ventanita
-  // invisible del login, que en iPhone demora muchísimo la apertura.
+  // initializeAuth (en vez de getAuth) evita cargar al arrancar una ventanita
+  // invisible que en iPhone demora muchísimo la apertura.
   auth = initializeAuth(app, {
     persistence: [indexedDBLocalPersistence, browserLocalPersistence],
   })
-  googleProvider = new GoogleAuthProvider()
-  googleProvider.setCustomParameters({ prompt: 'select_account' })
   // Caché persistente: se puede cargar sin señal y sincroniza al volver internet.
   db = initializeFirestore(app, {
     localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
   })
 }
 
-export { auth, db, googleProvider }
+export { auth, db }

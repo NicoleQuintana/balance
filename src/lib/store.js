@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  browserPopupRedirectResolver,
-  getRedirectResult,
+  createUserWithEmailAndPassword,
   onAuthStateChanged,
-  signInWithPopup,
-  signInWithRedirect,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
   signOut,
 } from 'firebase/auth'
 import { collection, deleteDoc, doc, onSnapshot, setDoc } from 'firebase/firestore'
-import { auth, db, firebaseActivo, googleProvider } from './firebase'
+import { auth, db, firebaseActivo } from './firebase'
 
 export const AJUSTES_BASE = {
   metaSemanal: 0,
@@ -45,25 +44,21 @@ function escribirLocal(nombre, valor) {
 const nuevoId = () =>
   globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`
 
-/* ---------- Sesión ---------- */
+/* ---------- Sesión (mail y contraseña) ---------- */
 
-function esIOSoInstalada() {
-  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent)
-  const instalada = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone
-  return Boolean(ios || instalada)
+const MENSAJES = {
+  'auth/invalid-credential': 'Mail o contraseña incorrectos.',
+  'auth/wrong-password': 'Mail o contraseña incorrectos.',
+  'auth/user-not-found': 'No hay ninguna cuenta con ese mail.',
+  'auth/email-already-in-use': 'Ya hay una cuenta con ese mail. Probá entrar.',
+  'auth/weak-password': 'La contraseña tiene que tener al menos 6 caracteres.',
+  'auth/invalid-email': 'Ese mail no es válido.',
+  'auth/missing-password': 'Escribí la contraseña.',
+  'auth/too-many-requests': 'Demasiados intentos. Esperá un rato y probá de nuevo.',
+  'auth/network-request-failed': 'No hay conexión. Probá cuando tengas señal.',
+  'auth/operation-not-allowed': 'Falta habilitar el acceso con mail en Firebase.',
 }
-
-function marcaRedirect(accion) {
-  const k = 'balance:loginRedirect'
-  try {
-    if (accion === 'poner') return localStorage.setItem(k, '1')
-    const habia = localStorage.getItem(k) === '1'
-    localStorage.removeItem(k)
-    return habia
-  } catch {
-    return accion === 'leer'
-  }
-}
+export const mensajeError = (e) => MENSAJES[e?.code] ?? 'Algo salió mal. Probá de nuevo.'
 
 export function useAuth() {
   const [estado, setEstado] = useState(() =>
@@ -74,36 +69,15 @@ export function useAuth() {
 
   useEffect(() => {
     if (!firebaseActivo) return
-    // Solo se busca el resultado del login cuando volvemos de la pantalla de Google.
-    if (marcaRedirect('leer')) {
-      getRedirectResult(auth, browserPopupRedirectResolver).catch((e) => console.error(e))
-    }
     return onAuthStateChanged(auth, (user) => setEstado({ user, cargando: false }))
   }, [])
 
-  const entrar = useCallback(async () => {
-    const redirigir = () => {
-      marcaRedirect('poner')
-      return signInWithRedirect(auth, googleProvider, browserPopupRedirectResolver)
-    }
-    // En el iPhone (y en la app instalada) la ventana emergente no funciona bien.
-    if (esIOSoInstalada()) return redirigir()
-    try {
-      await signInWithPopup(auth, googleProvider, browserPopupRedirectResolver)
-    } catch (e) {
-      const usarRedirect = [
-        'auth/popup-blocked',
-        'auth/operation-not-supported-in-this-environment',
-        'auth/cancelled-popup-request',
-      ]
-      if (usarRedirect.includes(e?.code)) await redirigir()
-      else if (e?.code !== 'auth/popup-closed-by-user') throw e
-    }
-  }, [])
-
+  const entrar = useCallback((mail, clave) => signInWithEmailAndPassword(auth, mail.trim(), clave), [])
+  const registrar = useCallback((mail, clave) => createUserWithEmailAndPassword(auth, mail.trim(), clave), [])
+  const recuperar = useCallback((mail) => sendPasswordResetEmail(auth, mail.trim()), [])
   const salir = useCallback(() => (firebaseActivo ? signOut(auth) : null), [])
 
-  return { ...estado, entrar, salir }
+  return { ...estado, entrar, registrar, recuperar, salir }
 }
 
 /* ---------- Datos ---------- */
