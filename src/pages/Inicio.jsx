@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
-  calcularJornada, enRango, estadoMantenimiento, fechaCorta, fmtNum, hoyISO, num,
-  pesos, rangoSemana, totalizar,
+  calcularJornada, enRango, estadoMantenimiento, fechaCorta, fmtNum, ganadoDesde, hoyISO,
+  nombreGasto, num, pesos, rangoSemana, totalizar,
 } from '../lib/calc'
 import { Dato, Icono, Plataforma } from '../components/ui'
 
@@ -25,17 +25,18 @@ function AvisoInstalar() {
   )
 }
 
-export default function Inicio({ jornadas, cargas, ajustes, ctx, kmAct, onEditar, onBorrar }) {
+export default function Inicio({ jornadas, cargas, gastos, ajustes, ctx, kmAct, onEditar, onBorrar }) {
   const hoy = hoyISO()
   const semana = rangoSemana(hoy)
   const t = totalizar(jornadas.filter((j) => enRango(j.fecha, semana)), ctx)
   const meta = num(ajustes.metaSemanal)
   const avance = meta > 0 ? Math.min(100, Math.max(0, (t.ganancia / meta) * 100)) : 0
-  const alertas = estadoMantenimiento(ajustes, kmAct).filter((m) => m.configurado && m.estado !== 'ok')
+  const mantenimiento = estadoMantenimiento(ajustes, kmAct).filter((m) => m.configurado)
 
   const registros = [
     ...jornadas.map((j) => ({ tipo: 'jornada', datos: j })),
     ...cargas.map((c) => ({ tipo: 'nafta', datos: c })),
+    ...gastos.map((g) => ({ tipo: 'gasto', datos: g })),
   ]
     .sort((a, b) =>
       a.datos.fecha === b.datos.fecha
@@ -73,18 +74,40 @@ export default function Inicio({ jornadas, cargas, ajustes, ctx, kmAct, onEditar
         <Dato etiqueta="Por hora" valor={pesos(t.porHora)} />
       </div>
 
-      {alertas.map((m) => (
-        <div key={m.clave} className={`alerta ${m.estado}`}>
-          <Icono nombre="alerta" tam={20} />
-          <p>
-            <b>{m.nombre}</b>{' '}
-            {m.estado === 'vencido'
-              ? `vencido hace ${fmtNum(-m.faltan, 0)} km`
-              : `en ${fmtNum(m.faltan, 0)} km`}{' '}
-            (a los {fmtNum(m.proximo, 0)} km)
-          </p>
+      {mantenimiento.length > 0 && (
+        <div className="tarjeta">
+          <span className="tarjeta-titulo">Mantenimiento</span>
+          {mantenimiento.map((m) => {
+            const ganado = ganadoDesde(jornadas, ctx, m.ultimo)
+            const cubre = m.costo > 0 ? Math.min(100, Math.max(0, (ganado / m.costo) * 100)) : 0
+            return (
+              <div key={m.clave} className="mant">
+                <div className="fila-entre">
+                  <span className={`mant-nombre ${m.estado === 'vencido' ? 'rojo' : ''}`}>
+                    {m.estado !== 'ok' && <Icono nombre="alerta" tam={16} />}
+                    {m.nombre}
+                  </span>
+                  <span className={`chico ${m.estado === 'vencido' ? 'rojo' : 'tenue'}`}>
+                    {m.estado === 'vencido'
+                      ? `vencido hace ${fmtNum(-m.faltan, 0)} km`
+                      : `en ${fmtNum(m.faltan, 0)} km`}
+                  </span>
+                </div>
+                {m.costo > 0 && (
+                  <>
+                    <div className="barra"><div className="barra-relleno" style={{ width: `${cubre}%` }} /></div>
+                    <p className="tenue chico">
+                      {cubre >= 100
+                        ? `¡Ya lo cubriste! Ganaste ${pesos(ganado)} desde el último (sale ~${pesos(m.costo)}).`
+                        : `Ganaste ${pesos(Math.max(0, ganado))} de los ~${pesos(m.costo)} que sale.`}
+                    </p>
+                  </>
+                )}
+              </div>
+            )
+          })}
         </div>
-      ))}
+      )}
 
       <div className="tarjeta">
         <span className="tarjeta-titulo">Consumo del auto</span>
@@ -115,16 +138,18 @@ export default function Inicio({ jornadas, cargas, ajustes, ctx, kmAct, onEditar
                   <div className="item-linea">
                     {tipo === 'jornada'
                       ? <Plataforma nombre={datos.plataforma} chica />
-                      : <span className="etiqueta-nafta">Nafta</span>}
+                      : <span className="etiqueta-nafta">{tipo === 'nafta' ? 'Nafta' : 'Auto'}</span>}
                     <span className="tenue chico">{fechaCorta(datos.fecha)}</span>
                   </div>
                   <span className="tenue chico">
                     {tipo === 'jornada'
                       ? `${fmtNum(r.km, 0)} km · ${fmtNum(r.horas)} h`
-                      : `${fmtNum(num(datos.litros))} l${datos.estacion ? ` · ${datos.estacion}` : ''}`}
+                      : tipo === 'nafta'
+                        ? `${fmtNum(num(datos.litros))} l${datos.estacion ? ` · ${datos.estacion}` : ''}`
+                        : `${nombreGasto(datos.tipo)}${datos.detalle ? ` · ${datos.detalle}` : ''}`}
                   </span>
                 </div>
-                <span className={`item-monto ${tipo === 'nafta' || r.ganancia < 0 ? 'rojo' : 'verde'}`}>
+                <span className={`item-monto ${tipo !== 'jornada' || r.ganancia < 0 ? 'rojo' : 'verde'}`}>
                   {tipo === 'jornada' ? pesos(r.ganancia) : `−${pesos(num(datos.monto))}`}
                 </span>
                 <div className="item-acciones">

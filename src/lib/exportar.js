@@ -1,8 +1,8 @@
-import { calcularJornada, hoyISO, num } from './calc'
+import { calcularJornada, hoyISO, nombreGasto, num } from './calc'
 
 const porFecha = (a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0)
 
-export async function exportarExcel(jornadas, cargas, ctx) {
+export async function exportarExcel(jornadas, cargas, gastos, ctx) {
   const XLSX = await import('xlsx')
 
   const filasJornadas = [...jornadas].sort(porFecha).map((j) => {
@@ -34,8 +34,17 @@ export async function exportarExcel(jornadas, cargas, ctx) {
     Cuentakilómetros: num(c.kmOdometro),
   }))
 
+  const filasGastos = [...gastos].sort(porFecha).map((g) => ({
+    Fecha: g.fecha,
+    Tipo: nombreGasto(g.tipo),
+    Detalle: g.detalle || '',
+    Monto: num(g.monto),
+    Cuentakilómetros: num(g.kmOdometro) || '',
+  }))
+
   const libro = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(libro, XLSX.utils.json_to_sheet(filasJornadas), 'Jornadas')
   XLSX.utils.book_append_sheet(libro, XLSX.utils.json_to_sheet(filasNafta), 'Nafta')
+  XLSX.utils.book_append_sheet(libro, XLSX.utils.json_to_sheet(filasGastos), 'Gastos del auto')
   XLSX.writeFile(libro, `balance-${hoyISO()}.xlsx`)
 }

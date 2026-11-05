@@ -201,3 +201,10 @@ button:disabled { opacity: .4; cursor: default; }
 .login-form { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 12px; text-align: left; margin-top: 8px; }
 .login-form .btn-primario { margin-top: 4px; width: 100%; max-width: none; }
 .login .btn-texto.tenue { color: var(--texto-2); }
+
+.mant { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.mant + .mant { border-top: 1px solid var(--borde); padding-top: 12px; }
+.mant-nombre { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.monto-chico { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ranking li > span:first-child { min-width: 0; padding-right: 10px; }
+.ranking li > span:last-child { white-space: nowrap; }

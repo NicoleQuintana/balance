@@ -163,14 +163,15 @@ export function mejorHorario(jornadas, ctx) {
 
 /* ---------- Kilometraje, uso personal y mantenimiento ---------- */
 
-function lecturas(jornadas, cargas) {
+function lecturas(jornadas, cargas, gastos = []) {
   return [
     ...jornadas.flatMap((j) => [num(j.kmInicio), num(j.kmFin)]),
     ...cargas.map((c) => num(c.kmOdometro)),
+    ...gastos.map((g) => num(g.kmOdometro)),
   ].filter((v) => v > 0)
 }
 
-export const kmActual = (jornadas, cargas) => Math.max(0, ...lecturas(jornadas, cargas))
+export const kmActual = (jornadas, cargas, gastos = []) => Math.max(0, ...lecturas(jornadas, cargas, gastos))
 
 export function usoPersonal(jornadas, cargas, ctx) {
   const l = lecturas(jornadas, cargas)
@@ -188,11 +189,12 @@ export function estadoMantenimiento(ajustes, km) {
   ].map((m) => {
     const ultimo = num(m.ultimo)
     const intervalo = num(m.intervalo)
-    if (!ultimo || !intervalo) return { ...m, configurado: false }
+    const costo = num(ajustes[`costo${m.clave}`])
+    if (!ultimo || !intervalo) return { ...m, costo, configurado: false }
     const proximo = ultimo + intervalo
     const faltan = proximo - km
     const estado = faltan <= 0 ? 'vencido' : faltan <= 1000 ? 'pronto' : 'ok'
-    return { ...m, configurado: true, proximo, faltan, estado }
+    return { ...m, costo, configurado: true, proximo, faltan, estado }
   })
 }
 
@@ -212,4 +214,20 @@ export function resumenEstaciones(cargas) {
   return [...mapa.values()]
     .map((e) => ({ ...e, precioLitro: e.litros > 0 ? e.monto / e.litros : 0 }))
     .sort((a, b) => b.veces - a.veces)
+}
+
+/* ---------- Gastos del auto ---------- */
+
+export const TIPOS_GASTO = [
+  { valor: 'Service', etiqueta: 'Service', nombre: 'Service' },
+  { valor: 'Aceite', etiqueta: 'Aceite', nombre: 'Cambio de aceite' },
+  { valor: 'Repuesto', etiqueta: 'Repuesto', nombre: 'Repuesto o arreglo' },
+  { valor: 'Otro', etiqueta: 'Otro', nombre: 'Otro gasto' },
+]
+export const nombreGasto = (tipo) => TIPOS_GASTO.find((t) => t.valor === tipo)?.nombre ?? 'Gasto'
+export const totalGastos = (gastos) => gastos.reduce((s, g) => s + num(g.monto), 0)
+
+// Lo ganado haciendo Uber/Didi desde el último service (o aceite), para ver cuánto del próximo ya cubriste.
+export function ganadoDesde(jornadas, ctx, kmDesde) {
+  return totalizar(jornadas.filter((j) => num(j.kmInicio) >= num(kmDesde)), ctx).ganancia
 }

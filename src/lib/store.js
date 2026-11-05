@@ -16,6 +16,8 @@ export const AJUSTES_BASE = {
   intervaloService: 10000,
   kmUltimoAceite: 0,
   intervaloAceite: 10000,
+  costoService: 0,
+  costoAceite: 0,
 }
 
 /* ---------- Modo local (sin Firebase) ---------- */

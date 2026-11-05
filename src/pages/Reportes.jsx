@@ -4,7 +4,7 @@ import {
 } from 'recharts'
 import {
   aFecha, corto, DIAS, diaSemana, diasDelRango, enRango, fmtNum, hoyISO,
-  mejorHorario, pesos, rangoMes, rangoSemana, resumenEstaciones, sumarDias, sumarMeses,
+  mejorHorario, nombreGasto, num, pesos, totalGastos, fechaCorta, rangoMes, rangoSemana, resumenEstaciones, sumarDias, sumarMeses,
   totalizar, usoPersonal,
 } from '../lib/calc'
 import { Dato, Icono, Plataforma, Segmentos } from '../components/ui'
@@ -31,7 +31,7 @@ function etiquetaPeriodo(modo, r) {
   return `${aFecha(r.desde).toLocaleDateString('es-AR', op)} – ${aFecha(r.hasta).toLocaleDateString('es-AR', op)}`
 }
 
-export default function Reportes({ jornadas, cargas, ctx }) {
+export default function Reportes({ jornadas, cargas, gastos, ctx }) {
   const [modo, setModo] = useState('semana')
   const [ancla, setAncla] = useState(hoyISO())
   const rango = modo === 'semana' ? rangoSemana(ancla) : rangoMes(ancla)
@@ -40,6 +40,11 @@ export default function Reportes({ jornadas, cargas, ctx }) {
 
   const delPeriodo = jornadas.filter((j) => enRango(j.fecha, rango))
   const t = totalizar(delPeriodo, ctx)
+  const gastosPeriodo = gastos
+    .filter((g) => enRango(g.fecha, rango))
+    .sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
+  const gAuto = totalGastos(gastosPeriodo)
+  const quedaFinal = t.ganancia - gAuto
 
   const porDia = diasDelRango(rango).map((d) => ({
     nombre: modo === 'semana' ? DIAS[diaSemana(d)] : String(aFecha(d).getDate()),
@@ -50,6 +55,7 @@ export default function Reportes({ jornadas, cargas, ctx }) {
     { nombre: 'Ingresos', valor: t.ingresos, color: C.gris },
     { nombre: 'Nafta', valor: t.nafta, color: C.rojo },
     { nombre: 'Peajes', valor: t.peajes, color: C.rojo },
+    ...(gAuto > 0 ? [{ nombre: 'Auto', valor: gAuto, color: C.rojo }] : []),
     { nombre: 'Ganancia', valor: t.ganancia, color: t.ganancia < 0 ? C.rojo : C.verde },
   ]
 
@@ -83,7 +89,7 @@ export default function Reportes({ jornadas, cargas, ctx }) {
       </div>
 
       {delPeriodo.length === 0 ? (
-        <p className="vacio">No hay jornadas en este período.</p>
+        gastosPeriodo.length === 0 && <p className="vacio">No hay jornadas en este período.</p>
       ) : (
         <>
           <div className="tarjeta">
@@ -167,6 +173,38 @@ export default function Reportes({ jornadas, cargas, ctx }) {
             </table>
           </div>
         </>
+      )}
+
+      {gastosPeriodo.length > 0 && (
+        <div className="tarjeta">
+          <span className="tarjeta-titulo">Gastos del auto</span>
+          <ul className="ranking">
+            {gastosPeriodo.map((g) => (
+              <li key={g.id}>
+                <span>
+                  {nombreGasto(g.tipo)}{g.detalle ? ` · ${g.detalle}` : ''}
+                  <span className="tenue chico"> · {fechaCorta(g.fecha)}</span>
+                </span>
+                <span className="rojo">−{pesos(num(g.monto))}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="grilla-datos">
+            <Dato etiqueta="Ganancia limpia" valor={pesos(t.ganancia)} tono={t.ganancia < 0 ? 'rojo' : 'verde'} />
+            <Dato etiqueta="Gastos del auto" valor={pesos(gAuto)} tono="rojo" />
+          </div>
+          <div className="fila-entre">
+            <span className="tarjeta-titulo">Te queda después de todo</span>
+            <span className={`monto-chico ${quedaFinal < 0 ? 'rojo' : 'verde'}`}>{pesos(quedaFinal)}</span>
+          </div>
+          <p className="tenue chico">
+            {t.ganancia <= 0
+              ? 'En este período no hubo ganancia para cubrir estos gastos.'
+              : quedaFinal >= 0
+                ? 'Lo que ganaste haciendo Uber/Didi cubrió todos los gastos del auto. 🙌'
+                : `Haciendo Uber/Didi cubriste el ${fmtNum((t.ganancia / gAuto) * 100, 0)}% de los gastos del auto.`}
+          </p>
+        </div>
       )}
 
       <h2 className="subtitulo">Desde que empezaste</h2>

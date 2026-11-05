@@ -38,37 +38,30 @@ export default function FormNafta({ inicial, cargas, kmAct, onGuardar, onCancela
   }
 
   return (
-    <section className="pagina">
-      <header className="cabecera">
-        <h1>{inicial ? 'Editar carga' : 'Cargar nafta'}</h1>
-        <p className="tenue">Los datos están en el ticket.</p>
-      </header>
+    <form className="formulario" onSubmit={enviar} noValidate>
+      <Campo etiqueta="Fecha" type="date" value={f.fecha} onChange={cambiar('fecha')} error={errores.fecha} />
+      <div className="dos-col">
+        <Campo etiqueta="Litros" inputMode="decimal" sufijo="l" value={f.litros} onChange={cambiar('litros')} error={errores.litros} />
+        <Campo etiqueta="Pagaste" inputMode="decimal" prefijo="$" value={f.monto} onChange={cambiar('monto')} error={errores.monto} />
+      </div>
+      <Campo etiqueta="Cuentakilómetros" inputMode="numeric" sufijo="km"
+        placeholder={kmAct ? fmtNum(kmAct, 0) : ''} value={f.kmOdometro}
+        onChange={cambiar('kmOdometro')} error={errores.kmOdometro}
+        ayuda="Si llenás el tanque cada vez, el consumo sale más preciso." />
+      <Campo etiqueta="Estación" list="estaciones" placeholder="Opcional" autoComplete="off"
+        value={f.estacion} onChange={cambiar('estacion')} />
+      <datalist id="estaciones">
+        {estaciones.map((e) => <option key={e} value={e} />)}
+      </datalist>
 
-      <form className="formulario" onSubmit={enviar} noValidate>
-        <Campo etiqueta="Fecha" type="date" value={f.fecha} onChange={cambiar('fecha')} error={errores.fecha} />
-        <div className="dos-col">
-          <Campo etiqueta="Litros" inputMode="decimal" sufijo="l" value={f.litros} onChange={cambiar('litros')} error={errores.litros} />
-          <Campo etiqueta="Pagaste" inputMode="decimal" prefijo="$" value={f.monto} onChange={cambiar('monto')} error={errores.monto} />
-        </div>
-        <Campo etiqueta="Cuentakilómetros" inputMode="numeric" sufijo="km"
-          placeholder={kmAct ? fmtNum(kmAct, 0) : ''} value={f.kmOdometro}
-          onChange={cambiar('kmOdometro')} error={errores.kmOdometro}
-          ayuda="Si llenás el tanque cada vez, el consumo sale más preciso." />
-        <Campo etiqueta="Estación" list="estaciones" placeholder="Opcional" autoComplete="off"
-          value={f.estacion} onChange={cambiar('estacion')} />
-        <datalist id="estaciones">
-          {estaciones.map((e) => <option key={e} value={e} />)}
-        </datalist>
+      {precioLitro > 0 && (
+        <p className="tenue">Te salió <b className="blanco">{pesos(precioLitro)}</b> el litro.</p>
+      )}
 
-        {precioLitro > 0 && (
-          <p className="tenue">Te salió <b className="blanco">{pesos(precioLitro)}</b> el litro.</p>
-        )}
-
-        <div className="botones">
-          {inicial && <button type="button" className="btn-secundario" onClick={onCancelar}>Cancelar</button>}
-          <button type="submit" className="btn-primario">{inicial ? 'Guardar cambios' : 'Guardar carga'}</button>
-        </div>
-      </form>
-    </section>
+      <div className="botones">
+        {inicial && <button type="button" className="btn-secundario" onClick={onCancelar}>Cancelar</button>}
+        <button type="submit" className="btn-primario">{inicial ? 'Guardar cambios' : 'Guardar carga'}</button>
+      </div>
+    </form>
   )
 }

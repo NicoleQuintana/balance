@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { crearContexto, kmActual } from './lib/calc'
+import { crearContexto, kmActual, num } from './lib/calc'
 import { borrar, guardar, mensajeError, useAjustes, useAuth, useColeccion } from './lib/store'
 import { Campo, Icono } from './components/ui'
 import Inicio from './pages/Inicio'
 import FormJornada from './pages/FormJornada'
-import FormNafta from './pages/FormNafta'
+import Gastos from './pages/Gastos'
 import Reportes from './pages/Reportes'
 import Ajustes from './pages/Ajustes'
 
 const PESTANAS = [
   { id: 'inicio', etiqueta: 'Inicio' },
   { id: 'jornada', etiqueta: 'Jornada' },
-  { id: 'nafta', etiqueta: 'Nafta' },
+  { id: 'gastos', etiqueta: 'Gastos', icono: 'nafta' },
   { id: 'reportes', etiqueta: 'Reportes' },
   { id: 'ajustes', etiqueta: 'Ajustes' },
 ]
@@ -85,13 +85,14 @@ function Principal({ auth }) {
   const { user } = auth
   const jornadas = useColeccion(user, 'jornadas')
   const cargas = useColeccion(user, 'cargas')
+  const gastos = useColeccion(user, 'gastos')
   const [ajustes, guardarAjustes] = useAjustes(user)
   const [pestana, setPestana] = useState('inicio')
   const [edicion, setEdicion] = useState(null)
   const [mensaje, setMensaje] = useState('')
 
   const ctx = useMemo(() => crearContexto(cargas, ajustes), [cargas, ajustes])
-  const kmAct = useMemo(() => kmActual(jornadas, cargas), [jornadas, cargas])
+  const kmAct = useMemo(() => kmActual(jornadas, cargas, gastos), [jornadas, cargas, gastos])
 
   useEffect(() => {
     if (!mensaje) return
@@ -102,12 +103,20 @@ function Principal({ auth }) {
   useEffect(() => { window.scrollTo(0, 0) }, [pestana])
 
   const irA = (id) => { setEdicion(null); setPestana(id) }
-  const editar = (tipo, datos) => { setEdicion({ tipo, datos }); setPestana(tipo) }
-  const coleccion = (tipo) => (tipo === 'jornada' ? 'jornadas' : 'cargas')
+  const pestanaDe = (tipo) => (tipo === 'jornada' ? 'jornada' : 'gastos')
+  const editar = (tipo, datos) => { setEdicion({ tipo, datos }); setPestana(pestanaDe(tipo)) }
+  const coleccion = (tipo) => ({ jornada: 'jornadas', nafta: 'cargas', gasto: 'gastos' })[tipo]
+  const MENSAJES = { jornada: 'Jornada guardada', nafta: 'Carga guardada', gasto: 'Gasto guardado' }
 
   const alGuardar = (tipo) => (datos) => {
     guardar(user, coleccion(tipo), datos)
-    setMensaje(datos.id ? 'Cambios guardados' : tipo === 'jornada' ? 'Jornada guardada' : 'Carga guardada')
+    // Un service o cambio de aceite con kilometraje queda anotado como el último.
+    const km = num(datos.kmOdometro)
+    if (tipo === 'gasto' && km && (datos.tipo === 'Service' || datos.tipo === 'Aceite')
+      && km >= num(ajustes[`kmUltimo${datos.tipo}`])) {
+      guardarAjustes({ [`kmUltimo${datos.tipo}`]: km })
+    }
+    setMensaje(datos.id ? 'Cambios guardados' : MENSAJES[tipo])
     irA('inicio')
   }
   const alBorrar = (tipo, datos) => {
@@ -124,20 +133,20 @@ function Principal({ auth }) {
     <div className="app">
       <main>
         {pestana === 'inicio' && (
-          <Inicio jornadas={jornadas} cargas={cargas} ajustes={ajustes} ctx={ctx} kmAct={kmAct}
+          <Inicio jornadas={jornadas} cargas={cargas} gastos={gastos} ajustes={ajustes} ctx={ctx} kmAct={kmAct}
             onEditar={editar} onBorrar={alBorrar} />
         )}
         {pestana === 'jornada' && (
           <FormJornada key={claveForm('jornada')} inicial={inicial('jornada')} ctx={ctx} kmAct={kmAct}
             onGuardar={alGuardar('jornada')} onCancelar={() => irA('inicio')} />
         )}
-        {pestana === 'nafta' && (
-          <FormNafta key={claveForm('nafta')} inicial={inicial('nafta')} cargas={cargas} kmAct={kmAct}
-            onGuardar={alGuardar('nafta')} onCancelar={() => irA('inicio')} />
+        {pestana === 'gastos' && (
+          <Gastos key={edicion?.datos?.id ?? 'nuevo'} edicion={edicion?.tipo !== 'jornada' ? edicion : null}
+            cargas={cargas} kmAct={kmAct} onGuardar={alGuardar} onCancelar={() => irA('inicio')} />
         )}
-        {pestana === 'reportes' && <Reportes jornadas={jornadas} cargas={cargas} ctx={ctx} />}
+        {pestana === 'reportes' && <Reportes jornadas={jornadas} cargas={cargas} gastos={gastos} ctx={ctx} />}
         {pestana === 'ajustes' && (
-          <Ajustes key={JSON.stringify(ajustes)} ajustes={ajustes} guardarAjustes={guardarAjustes} jornadas={jornadas} cargas={cargas}
+          <Ajustes key={JSON.stringify(ajustes)} ajustes={ajustes} guardarAjustes={guardarAjustes} jornadas={jornadas} cargas={cargas} gastos={gastos}
             ctx={ctx} kmAct={kmAct} auth={auth} avisar={setMensaje} />
         )}
       </main>
@@ -148,7 +157,7 @@ function Principal({ auth }) {
         {PESTANAS.map((p) => (
           <button key={p.id} className={pestana === p.id ? 'activo' : ''} onClick={() => irA(p.id)}
             aria-current={pestana === p.id ? 'page' : undefined}>
-            <Icono nombre={p.id} />
+            <Icono nombre={p.icono ?? p.id} />
             <span>{p.etiqueta}</span>
           </button>
         ))}

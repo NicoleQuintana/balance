@@ -4,9 +4,9 @@ import { exportarExcel } from '../lib/exportar'
 import { firebaseActivo } from '../lib/firebase'
 import { Campo } from '../components/ui'
 
-const CAMPOS = ['metaSemanal', 'kmPorLitroManual', 'kmUltimoService', 'intervaloService', 'kmUltimoAceite', 'intervaloAceite']
+const CAMPOS = ['metaSemanal', 'kmPorLitroManual', 'kmUltimoService', 'intervaloService', 'kmUltimoAceite', 'intervaloAceite', 'costoService', 'costoAceite']
 
-export default function Ajustes({ ajustes, guardarAjustes, jornadas, cargas, ctx, kmAct, auth, avisar }) {
+export default function Ajustes({ ajustes, guardarAjustes, jornadas, cargas, gastos, ctx, kmAct, auth, avisar }) {
   const [f, setF] = useState(() =>
     Object.fromEntries(CAMPOS.map((k) => [k, num(ajustes[k]) ? String(ajustes[k]) : ''])))
   const [exportando, setExportando] = useState(false)
@@ -28,7 +28,7 @@ export default function Ajustes({ ajustes, guardarAjustes, jornadas, cargas, ctx
 
   const exportar = async () => {
     setExportando(true)
-    try { await exportarExcel(jornadas, cargas, ctx) } finally { setExportando(false) }
+    try { await exportarExcel(jornadas, cargas, gastos, ctx) } finally { setExportando(false) }
   }
 
   return (
@@ -61,6 +61,9 @@ export default function Ajustes({ ajustes, guardarAjustes, jornadas, cargas, ctx
                 <Campo etiqueta="Cada" inputMode="numeric" sufijo="km"
                   value={f[`intervalo${m.clave}`]} onChange={cambiar(`intervalo${m.clave}`)} />
               </div>
+              <Campo etiqueta="Costo estimado" inputMode="decimal" prefijo="$"
+                value={f[`costo${m.clave}`]} onChange={cambiar(`costo${m.clave}`)}
+                ayuda="Lo que te cobran en la concesionaria. Opcional." />
               <div className="fila-entre">
                 <span className="tenue chico">
                   {m.configurado ? `Próximo a los ${fmtNum(m.proximo, 0)} km` : 'Sin configurar'}
@@ -81,8 +84,8 @@ export default function Ajustes({ ajustes, guardarAjustes, jornadas, cargas, ctx
 
       <div className="tarjeta">
         <span className="tarjeta-titulo">Exportar</span>
-        <p className="tenue chico">Todas tus jornadas y cargas de nafta en una planilla de Excel.</p>
-        <button className="btn-secundario" onClick={exportar} disabled={exportando || (!jornadas.length && !cargas.length)}>
+        <p className="tenue chico">Tus jornadas, cargas de nafta y gastos del auto en una planilla de Excel.</p>
+        <button className="btn-secundario" onClick={exportar} disabled={exportando || (!jornadas.length && !cargas.length && !gastos.length)}>
           {exportando ? 'Armando…' : 'Descargar Excel'}
         </button>
       </div>
